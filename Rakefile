@@ -7,7 +7,7 @@ task :new, [:version, :stack] do |t, args|
       file.puts <<FILE
 #!/bin/sh
 
-docker run -v `pwd`/builds:/tmp/output -v `pwd`/../cache:/tmp/cache -e VERSION=#{jruby_version} -e RUBY_VERSION=#{ruby_version} -t hone/jruby-builder:#{args[:stack]}
+docker run -v `pwd`/builds:/tmp/output -v `pwd`/cache:/tmp/cache -e VERSION=#{jruby_version} -e RUBY_VERSION=#{ruby_version} -t hone/jruby-builder:#{args[:stack]}
 FILE
     end
   end

@@ -1,0 +1,7 @@
+cache
+rubies
+builds
+Gemfile
+Gemfile.lock
+Rakefile
+vendor/bundle
