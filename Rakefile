@@ -1,13 +1,19 @@
 desc "Generate new jruby shell scripts"
 task :new, [:version, :stack] do |t, args|
+  source_folder = "rubies/#{args[:stack]}"
+  FileUtils.mkdir_p(source_folder)
+
   write_file = Proc.new do |ruby_version, jruby_version|
-    file = "rubies/ruby-#{ruby_version}-jruby-#{jruby_version}.sh"
+    file = "#{source_folder}/ruby-#{ruby_version}-jruby-#{jruby_version}.sh"
     puts "Writing #{file}"
     File.open(file, 'w') do |file|
       file.puts <<FILE
 #!/bin/sh
 
-docker run -v `pwd`/builds:/tmp/output -v `pwd`/cache:/tmp/cache -e VERSION=#{jruby_version} -e RUBY_VERSION=#{ruby_version} -t hone/jruby-builder:#{args[:stack]}
+source `dirname $0`/../common.sh
+source `dirname $0`/common.sh
+
+docker run -v $OUTPUT_DIR:/tmp/output -v $CACHE_DIR:/tmp/cache -e VERSION=#{jruby_version} -e RUBY_VERSION=#{ruby_version} -t hone/jruby-builder:$STACK
 FILE
     end
   end
@@ -36,8 +42,17 @@ task :upload, [:version, :ruby_version, :stack] do |t, args|
   s3          = AWS::S3.new
   bucket      = s3.buckets[bucket_name]
   object      = bucket.objects[s3_key]
+  build_file  = "builds/#{args[:stack]}/#{file}"
 
-  puts "Uploading builds/#{file} to s3://#{bucket_name}/#{s3_key}"
-  object.write(file: "builds/#{file}")
+  puts "Uploading #{build_file} to s3://#{bucket_name}/#{s3_key}"
+  object.write(file: build_file)
   object.acl = :public_read
+end
+
+desc "Build docker image for stack"
+task :generate_image, [:stack] do |t, args|
+  require 'fileutils'
+  FileUtils.cp("dockerfiles/Dockerfile.#{args[:stack]}", "Dockerfile")
+  system("docker build -t hone/jruby-builder:#{args[:stack]} .")
+  FileUtils.rm("Dockerfile")
 end

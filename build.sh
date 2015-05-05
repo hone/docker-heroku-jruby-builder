@@ -4,8 +4,6 @@ workspace_dir=$1
 output_dir=$2
 cache_dir=$3
 
-s3_bucket_name="heroku-buildpack-ruby"
-vendor_url="https://s3.amazonaws.com/$s3_bucket_name"
 jruby_src_file=jruby-src-$VERSION.tar.gz
 
 cd $cache_dir
