@@ -1,1 +1,4 @@
 builds/
+.bundle/
+cache/
+vendor/bundle/
