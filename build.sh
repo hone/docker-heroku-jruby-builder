@@ -11,7 +11,7 @@ if [ $GIT_URL ]; then
 	git clone $GIT_URL release
 	cd release
 	git checkout $GIT_TREEISH
-	MAVEN_OPTS=-XX:MaxPermSize=768m mvn install -Pdist
+	MAVEN_OPTS=-XX:MaxPermSize=768m ./mvnw install -Pdist
 	cp maven/jruby-dist/target/jruby-dist-$VERSION-src.tar.gz $cache_dir/$jruby_src_file
 	cd ..
 else
@@ -35,7 +35,7 @@ major=$1
 minor=$2
 patch=$3
 
-mvn -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
+./mvnw -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
 rm bin/*.bat
 rm bin/*.dll
 rm bin/*.exe
