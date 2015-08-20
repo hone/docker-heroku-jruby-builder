@@ -24,7 +24,7 @@ fi
 cd $workspace_dir
 tar zxf $cache_dir/$jruby_src_file
 cd jruby-$VERSION
-if [ $VERSION="1.7.5" ]; then
+if [ "$VERSION" = "1.7.5" ]; then
 	package_file="/tmp/buildpack_*/vendor/package.rb"
 	cp $package_file lib/ruby/shared/rubygems
 fi
@@ -35,12 +35,18 @@ major=$1
 minor=$2
 patch=$3
 
-./mvnw -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
+if [ -d mvnw ]; then
+  ./mvnw -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
+else
+  mvn -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
+fi
 rm bin/*.bat
 rm bin/*.dll
 rm bin/*.exe
 rm -rf lib/target
-find lib/jni/* ! -name x86_64-Linux -print0 | xargs -0 rm -rf --
+if [ -d lib/jni ] ; then
+  find lib/jni/* ! -name x86_64-Linux -print0 | xargs -0 rm -rf --
+fi
 #ln -s jruby bin/ruby
 mkdir -p $output_dir
 tar cvzf $output_dir/ruby-$RUBY_VERSION-jruby-$VERSION.tgz bin/ lib/
