@@ -49,5 +49,5 @@ if [ -d lib/jni ] ; then
 fi
 #ln -s jruby bin/ruby
 mkdir -p $output_dir
-tar cvzf $output_dir/ruby-$RUBY_VERSION-jruby-$VERSION.tgz bin/ lib/
+tar czf $output_dir/ruby-$RUBY_VERSION-jruby-$VERSION.tgz bin/ lib/
 ls $output_dir
