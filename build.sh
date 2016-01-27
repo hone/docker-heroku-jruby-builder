@@ -40,6 +40,9 @@ if [ -d mvnw ]; then
 else
   mvn -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
 fi
+if [ $? -ne 0 ]; then
+  exit $1
+fi
 rm bin/*.bat
 rm bin/*.dll
 rm bin/*.exe
