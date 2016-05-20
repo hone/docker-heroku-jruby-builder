@@ -24,8 +24,10 @@ FILE
       write_file.call("2.2.0", args[:version])
     elsif cmp_ver < Gem::Version.new("9.0.5.0")
       write_file.call("2.2.2", args[:version])
-    else
+    elsif cmp_ver < Gem::Version.new("9.1.0.0")
       write_file.call("2.2.3", args[:version])
+    else
+      write_file.call("2.3.0", args[:version])
     end
   else
     ["1.8.7", "1.9.3", "2.0.0"].each do |ruby_version|
@@ -37,7 +39,7 @@ end
 desc "Upload a ruby to S3"
 task :upload, [:version, :ruby_version, :stack] do |t, args|
   require 'aws-sdk'
-  
+
   file        = "ruby-#{args[:ruby_version]}-jruby-#{args[:version]}.tgz"
   s3_key      = "#{args[:stack]}/#{file}"
   bucket_name = "heroku-buildpack-ruby"
@@ -106,7 +108,7 @@ task :test, [:version, :ruby_version, :stack] do |t, args|
     text = File.read("#{app_dir}/Gemfile")
     text.sub!(/^\s*ruby.*$/, ruby_line)
     File.open("#{app_dir}/Gemfile", 'w') {|file| file.print(text) }
-    
+
     Dir.chdir(app_dir) do
       puts "Packaging app"
       system_pipe("tar czf #{app_tar} *")
