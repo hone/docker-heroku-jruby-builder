@@ -20,15 +20,13 @@ FILE
 
   # JRuby 9000
   if (cmp_ver = Gem::Version.new(args[:version])) > Gem::Version.new("1.8.0")
-    if args[:version] == "9.0.0.0.pre1"
-      write_file.call("2.2.0", args[:version])
-    elsif cmp_ver < Gem::Version.new("9.0.5.0")
-      write_file.call("2.2.2", args[:version])
-    elsif cmp_ver < Gem::Version.new("9.1.0.0")
-      write_file.call("2.2.3", args[:version])
-    else
-      write_file.call("2.3.0", args[:version])
+    uri = URI("https://raw.githubusercontent.com/jruby/jruby/#{args[:version]}/default.build.properties")
+    default_props = Net::HTTP.get(uri)
+    version_ruby = default_props.match(/^version\.ruby=(.*)$/)[1]
+    if version_ruby.nil? || version_ruby == ""
+      raise "Could not find Ruby StdLib version!"
     end
+    write_file.call(version_ruby, args[:version])
   else
     ["1.8.7", "1.9.3", "2.0.0"].each do |ruby_version|
       write_file.call(ruby_version, args[:version])
