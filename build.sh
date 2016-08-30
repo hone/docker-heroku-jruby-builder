@@ -35,9 +35,13 @@ major=$1
 minor=$2
 patch=$3
 
-if [ -d mvnw ]; then
+if [ -f mvnw ]; then
   ./mvnw -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
 else
+	cd /opt
+	curl http://apache.org/dist/maven/maven-3/3.3.1/binaries/apache-maven-3.3.1-bin.tar.gz -s -o - | tar xzmf -
+	ln -s /opt/apache-maven-3.3.1/bin/mvn /usr/local/bin
+	cd -
   mvn -Djruby.default.ruby.version=$major.$minor -Dmaven.repo.local=$cache_dir/.m2/repository -T4
 fi
 if [ $? -ne 0 ]; then
