@@ -38,6 +38,8 @@ desc "Upload a ruby to S3"
 task :upload, [:version, :ruby_version, :stack] do |t, args|
   require 'aws-sdk'
 
+  puts "WARNING: Empty AWS_PROFILE" if ENV['AWS_PROFILE'] == ""
+
   file        = "ruby-#{args[:ruby_version]}-jruby-#{args[:version]}.tgz"
   s3_key      = "#{args[:stack]}/#{file}"
   bucket_name = "heroku-buildpack-ruby"
