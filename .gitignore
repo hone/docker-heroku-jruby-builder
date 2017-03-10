@@ -3,3 +3,4 @@ builds/
 cache/
 vendor/bundle/
 .env
+bin/
