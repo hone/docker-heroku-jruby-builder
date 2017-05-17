@@ -20,6 +20,8 @@ FILE
 
   # JRuby 9000
   if (cmp_ver = Gem::Version.new(args[:version])) > Gem::Version.new("1.8.0")
+    require 'uri'
+    require 'net/http'
     uri = URI("https://raw.githubusercontent.com/jruby/jruby/#{args[:version]}/default.build.properties")
     default_props = Net::HTTP.get(uri)
     version_ruby = default_props.match(/^version\.ruby=(.*)$/)[1]
