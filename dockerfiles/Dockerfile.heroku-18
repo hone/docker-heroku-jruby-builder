@@ -1,0 +1,15 @@
+FROM heroku/heroku:18
+MAINTAINER hone
+
+COPY docker_support/install-jdk.sh /tmp/install-jdk.sh
+ENV STACK=heroku-16
+RUN bash /tmp/install-jdk.sh "1.8"
+ENV PATH=/opt/jdk/.jdk/bin:$PATH
+
+# setup workspace
+RUN rm -rf /tmp/workspace
+RUN mkdir -p /tmp/workspace
+
+# output dir is mounted
+COPY build.sh /tmp/build.sh
+CMD ["sh", "/tmp/build.sh", "/tmp/workspace", "/tmp/output", "/tmp/cache"]
