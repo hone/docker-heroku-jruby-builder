@@ -1,6 +1,8 @@
+STACKS = ['cedar-14', 'heroku-16', 'heroku-18']
+
 desc "Generate new jruby shell scripts"
-task :new, [:version, :stack] do |t, args|
-  source_folder = "rubies/#{args[:stack]}"
+task :new, [:version] do |t, args|
+  source_folder = "rubies"
   FileUtils.mkdir_p(source_folder)
 
   write_file = Proc.new do |ruby_version, jruby_version|
@@ -13,7 +15,7 @@ task :new, [:version, :stack] do |t, args|
 source `dirname $0`/../common.sh
 source `dirname $0`/common.sh
 
-docker run -v $OUTPUT_DIR:/tmp/output -v $CACHE_DIR:/tmp/cache -e VERSION=#{jruby_version} -e RUBY_VERSION=#{ruby_version} -t hone/jruby-builder:$STACK
+docker run -v $OUTPUT_DIR:/tmp/output -v $CACHE_DIR:/tmp/cache -e VERSION=#{jruby_version} -e RUBY_VERSION=#{ruby_version} -t hone/jruby-builder
 FILE
     end
   end
@@ -37,34 +39,37 @@ FILE
 end
 
 desc "Upload a ruby to S3"
-task :upload, [:version, :ruby_version, :stack] do |t, args|
+task :upload, [:version, :ruby_version] do |t, args|
   require 'aws-sdk'
 
   puts "WARNING: Empty AWS_PROFILE" if ENV['AWS_PROFILE'].nil?
 
   file        = "ruby-#{args[:ruby_version]}-jruby-#{args[:version]}.tgz"
-  s3_key      = "#{args[:stack]}/#{file}"
   bucket_name = "heroku-buildpack-ruby"
-  s3          = AWS::S3.new
-  bucket      = s3.buckets[bucket_name]
-  object      = bucket.objects[s3_key]
-  build_file  = "builds/#{args[:stack]}/#{file}"
+  build_file  = "builds/#{file}"
 
-  puts "Uploading #{build_file} to s3://#{bucket_name}/#{s3_key}"
-  object.write(file: build_file)
-  object.acl = :public_read
+  STACKS.each do |stack|
+    s3_key      = "#{stack}/#{file}"
+    s3          = AWS::S3.new
+    bucket      = s3.buckets[bucket_name]
+    object      = bucket.objects[s3_key]
+
+    puts "Uploading #{build_file} to s3://#{bucket_name}/#{s3_key}"
+    object.write(file: build_file)
+    object.acl = :public_read
+  end
 end
 
-desc "Build docker image for stack"
-task :generate_image, [:stack] do |t, args|
+desc "Build docker image"
+task :generate_image do |t, args|
   require 'fileutils'
-  FileUtils.cp("dockerfiles/Dockerfile.#{args[:stack]}", "Dockerfile")
-  system("docker build -t hone/jruby-builder:#{args[:stack]} .")
+  FileUtils.cp("dockerfiles/Dockerfile.heroku-16", "Dockerfile")
+  system("docker build -t hone/jruby-builder .")
   FileUtils.rm("Dockerfile")
 end
 
 desc "Test images"
-task :test, [:version, :ruby_version, :stack] do |t, args|
+task :test, [:version, :ruby_version] do |t, args|
   require 'tmpdir'
   require 'okyakusan'
   require 'rubygems/package'
@@ -101,108 +106,111 @@ task :test, [:version, :ruby_version, :stack] do |t, args|
   web_url  = nil
   FileUtils.mkdir_p("#{tmp_dir}/app")
 
-  begin
-    system_pipe("git clone --depth 1 https://github.com/sharpstone/jruby-minimal.git #{app_dir}")
-    exit 1 unless $?.success?
 
-    ruby_line = gemfile_ruby(args[:ruby_version], "jruby", args[:version])
-    puts "Setting ruby version: #{ruby_line}"
-    text = File.read("#{app_dir}/Gemfile")
-    text.sub!(/^\s*ruby.*$/, ruby_line)
-    File.open("#{app_dir}/Gemfile", 'w') {|file| file.print(text) }
-
-    Dir.chdir(app_dir) do
-      puts "Packaging app"
-      system_pipe("tar czf #{app_tar} *")
+  STACKS.each do |stack|
+    begin
+      system_pipe("git clone --depth 1 https://github.com/sharpstone/jruby-minimal.git #{app_dir}")
       exit 1 unless $?.success?
-    end
 
-    Okyakusan.start do |heroku|
-      # create new app
-      response = heroku.post("/apps", data: {
-        stack: args[:stack]
-      })
+      ruby_line = gemfile_ruby(args[:ruby_version], "jruby", args[:version])
+      puts "Setting ruby version: #{ruby_line}"
+      text = File.read("#{app_dir}/Gemfile")
+      text.sub!(/^\s*ruby.*$/, ruby_line)
+      File.open("#{app_dir}/Gemfile", 'w') {|file| file.print(text) }
 
-      if response.code != "201"
-        $sterr.puts "Error Creating Heroku App (#{resp.code}): #{resp.body}"
-        exit 1
-      end
-      json     = JSON.parse(response.body)
-      app_name = json["name"]
-      web_url  = json["web_url"]
-
-      # upload source
-      response = heroku.post("/apps/#{app_name}/sources")
-      if response.code != "201"
-        $stderr.puts "Couldn't get sources to upload code."
-        exit 1
+      Dir.chdir(app_dir) do
+        puts "Packaging app"
+        system_pipe("tar czf #{app_tar} *")
+        exit 1 unless $?.success?
       end
 
-      json = JSON.parse(response.body)
-      source_get_url = json["source_blob"]["get_url"]
-      source_put_url = json["source_blob"]["put_url"]
-
-      puts "Uploading data to #{source_put_url}"
-      uri = URI(source_put_url)
-      Net::HTTP.start(uri.host, uri.port, :use_ssl => (uri.scheme == 'https')) do |http|
-        request = Net::HTTP::Put.new(uri.request_uri, {
-          'Content-Length'   => File.size(app_tar).to_s,
-          # This is required, or Net::HTTP will add a default unsigned content-type.
-          'Content-Type'      => ''
+      Okyakusan.start do |heroku|
+        # create new app
+        response = heroku.post("/apps", data: {
+          stack: args[:stack]
         })
-        begin
-          app_tar_io          = File.open(app_tar)
-          request.body_stream = app_tar_io
-          response            = http.request(request)
-          if response.code != "200"
-            $stderr.puts "Could not upload code"
-            exit 1
+
+        if response.code != "201"
+          $sterr.puts "Error Creating Heroku App (#{resp.code}): #{resp.body}"
+          exit 1
+        end
+        json     = JSON.parse(response.body)
+        app_name = json["name"]
+        web_url  = json["web_url"]
+
+        # upload source
+        response = heroku.post("/apps/#{app_name}/sources")
+        if response.code != "201"
+          $stderr.puts "Couldn't get sources to upload code."
+          exit 1
+        end
+
+        json = JSON.parse(response.body)
+        source_get_url = json["source_blob"]["get_url"]
+        source_put_url = json["source_blob"]["put_url"]
+
+        puts "Uploading data to #{source_put_url}"
+        uri = URI(source_put_url)
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => (uri.scheme == 'https')) do |http|
+          request = Net::HTTP::Put.new(uri.request_uri, {
+            'Content-Length'   => File.size(app_tar).to_s,
+            # This is required, or Net::HTTP will add a default unsigned content-type.
+            'Content-Type'      => ''
+          })
+          begin
+            app_tar_io          = File.open(app_tar)
+            request.body_stream = app_tar_io
+            response            = http.request(request)
+            if response.code != "200"
+              $stderr.puts "Could not upload code"
+              exit 1
+            end
+          ensure
+            app_tar_io.close
           end
-        ensure
-          app_tar_io.close
+        end
+
+        # create build
+        response = heroku.post("/apps/#{app_name}/builds", version: "3.streaming-build-output", data: {
+          "source_blob" => {
+            "url"     => source_get_url,
+            "version" => ""
+          }
+        })
+        if response.code != "201"
+          $stderr.puts "Could create build"
+          exit 1
+        end
+
+        # stream build output
+        uri = URI(JSON.parse(response.body)["output_stream_url"])
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => (uri.scheme == 'https')) do |http|
+          request = Net::HTTP::Get.new uri.request_uri
+          http.request(request) do |response|
+            response.read_body do |chunk|
+              print chunk
+            end
+          end
         end
       end
 
-      # create build
-      response = heroku.post("/apps/#{app_name}/builds", version: "3.streaming-build-output", data: {
-        "source_blob" => {
-          "url"     => source_get_url,
-          "version" => ""
-        }
-      })
-      if response.code != "201"
-        $stderr.puts "Could create build"
+      # test app
+      puts web_url
+      sleep(1)
+      response = network_retry(20) do
+        Net::HTTP.get_response(URI(web_url))
+      end
+
+      if response.code != "200"
+        $stderr.puts "App did not return a 200: #{response.code}"
         exit 1
+      else
+        puts response.body
+        puts "Deleting #{app_name}"
+        Okyakusan.start {|heroku| heroku.delete("/apps/#{app_name}") if app_name }
       end
-
-      # stream build output
-      uri = URI(JSON.parse(response.body)["output_stream_url"])
-      Net::HTTP.start(uri.host, uri.port, :use_ssl => (uri.scheme == 'https')) do |http|
-        request = Net::HTTP::Get.new uri.request_uri
-        http.request(request) do |response|
-          response.read_body do |chunk|
-            print chunk
-          end
-        end
-      end
+    ensure
+      FileUtils.remove_entry tmp_dir
     end
-
-    # test app
-    puts web_url
-    sleep(1)
-    response = network_retry(20) do
-      Net::HTTP.get_response(URI(web_url))
-    end
-
-    if response.code != "200"
-      $stderr.puts "App did not return a 200: #{response.code}"
-      exit 1
-    else
-      puts response.body
-      puts "Deleting #{app_name}"
-      Okyakusan.start {|heroku| heroku.delete("/apps/#{app_name}") if app_name }
-    end
-  ensure
-    FileUtils.remove_entry tmp_dir
   end
 end
