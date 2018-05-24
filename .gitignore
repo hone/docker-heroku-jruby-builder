@@ -4,3 +4,4 @@ cache/
 vendor/bundle/
 .env
 bin/
+.DS_Store
