@@ -111,6 +111,15 @@ task :test, [:version, :ruby_version, :stack] do |t, args|
     text.sub!(/^\s*ruby.*$/, ruby_line)
     File.open("#{app_dir}/Gemfile", 'w') {|file| file.print(text) }
 
+    lines = File.readlines("#{app_dir}/Gemfile.lock")
+    File.open("#{app_dir}/Gemfile.lock", 'w') do |file|
+      lines.each do |line|
+        next if line.match(/RUBY VERSION/)
+        next if line.match(/ruby (\d+\.\d+\.\d+p\d+) \(jruby \d+\.\d+\.\d+\.\d+\)/)
+        file.puts line
+      end
+    end
+
     Dir.chdir(app_dir) do
       puts "Packaging app"
       system_pipe("tar czf #{app_tar} *")
