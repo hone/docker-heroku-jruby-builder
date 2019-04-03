@@ -29,6 +29,13 @@ if [ "$VERSION" = "1.7.5" ]; then
 	cp $package_file lib/ruby/shared/rubygems
 fi
 
+
+if echo "$VERSION" | grep -q "^1\.7\."; then
+	echo "Upgrading to jruby-openssl 0.9.21"
+	sed -i.bak s/0.9.19/0.9.21/g lib/pom.rb
+	sed -i.bak s/0.9.19/0.9.21/g lib/pom.xml
+fi
+
 var=$(echo $RUBY_VERSION | awk -F"." '{print $1,$2,$3}')
 set -- $var
 major=$1
