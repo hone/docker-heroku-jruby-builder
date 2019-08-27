@@ -1,0 +1,119 @@
+version: 2.1
+
+workflows:
+  version: 2.1
+  cedar-14:
+    jobs:
+      - build-jruby:
+          stack: "cedar-14"
+      - upload-to-s3:
+          stack: "cedar-14"
+          bucket_name: $PRODUCTION_BUCKET_NAME
+          aws_access_key_id: $PRODUCTION_AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $PRODUCTION_AWS_SECRET_ACCESS_KEY
+          requires:
+            - build-jruby
+      - verify:
+          stack: "cedar-14"
+          bucket_name: $PRODUCTION_BUCKET_NAME
+          requires:
+            - upload-to-s3
+  heroku-16:
+    jobs:
+      - build-jruby:
+          stack: "heroku-16"
+      - upload-to-s3:
+          stack: "heroku-16"
+          bucket_name: $PRODUCTION_BUCKET_NAME
+          aws_access_key_id: $PRODUCTION_AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $PRODUCTION_AWS_SECRET_ACCESS_KEY
+          requires:
+            - build-openjdk
+      - verify:
+          stack: "heroku-16"
+          bucket_name: $PRODUCTION_BUCKET_NAME
+          requires:
+            - upload-to-s3
+  heroku-18:
+    jobs:
+      - build-jruby:
+          stack: "heroku-18"
+      - upload-to-s3:
+          stack: "heroku-18"
+          bucket_name: $PRODUCTION_BUCKET_NAME
+          aws_access_key_id: $PRODUCTION_AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $PRODUCTION_AWS_SECRET_ACCESS_KEY
+          requires:
+            - build-jruby
+      - verify:
+          stack: "heroku-18"
+          bucket_name: $PRODUCTION_BUCKET_NAME
+          requires:
+            - upload-to-s3
+
+jobs:
+  build-jruby:
+    docker:
+      - image: heroku/heroku:18
+    parameters:
+      stack:
+        type: string
+    steps:
+      - checkout
+      - run: |
+          bundle install
+          bundle exec rake generate_image[<< parameters.stack >>]
+          bundle exec rake new[$JRUBY_VERSION,<< parameters.stack >>]
+          bash rubies/<< parameters.stack >>/ruby-*-jruby-$JRUBY_VERSION.sh
+      - persist_to_workspace:
+          root: .
+          paths:
+            - builds
+  upload-to-s3:
+    docker:
+      - image: circleci/python:2.7-stretch
+    parameters:
+      bucket_name:
+        type: string
+      aws_access_key_id:
+        type: string
+      aws_secret_access_key:
+        type: string
+      stack:
+        type: string
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Install AWS CLI
+          command: sudo pip install awscli
+      - run:
+          name: Setup AWS Credentials
+          command: |
+            mkdir -p ~/.aws/
+            printf "[<< parameters.bucket_name >>]\naws_access_key_id = << parameters.aws_access_key_id >>\naws_secret_access_key = << parameters.aws_secret_access_key >>" > ~/.aws/credentials
+      - run:
+          name: Upload JRuby to S3
+          command: |
+            export RUBY_VERSION=$(ls rubies/heroku-18/ruby-*-jruby-$JRUBY_VERSION.sh | sed -e 's/^.*ruby-\(.*\)-jruby.*$/\1/g')
+            aws s3 cp builds/<< parameters.stack >>/ruby-$RUBY_VERSION-jruby-$JRUBY_VERSION.tgz s3://<< parameters.bucket_name >>/<< parameters.stack >>/ruby-$RUBY_VERSION-jruby-$JRUBY_VERSION.tgz
+  verify:
+    docker:
+      - image: heroku/heroku:18
+    parameters:
+      bucket_name:
+        type: string
+      stack:
+        type: string
+    steps:
+      - run:
+          name: Setup Heroku
+          command: |
+            curl https://cli-assets.heroku.com/install.sh | sh
+            printf "machine api.heroku.com\n  login jkutner+tunnels@gmail.com\n  password $HEROKU_API_KEY\n" > ~/.netrc
+            chmod 0600 ~/.netrc
+      - checkout
+      - run:
+          name: Verifying JDK
+          command: echo "TODO"
