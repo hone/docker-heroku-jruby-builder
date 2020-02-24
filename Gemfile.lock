@@ -14,10 +14,10 @@ GEM
       json (~> 1.4)
       nokogiri (>= 1.4.4)
     json (1.8.6)
-    mini_portile2 (2.1.0)
+    mini_portile2 (2.4.0)
     netrc (0.7.9)
-    nokogiri (1.6.8.1)
-      mini_portile2 (~> 2.1.0)
+    nokogiri (1.10.8)
+      mini_portile2 (~> 2.4.0)
     rake (12.0.0)
 
 PLATFORMS
@@ -26,7 +26,7 @@ PLATFORMS
 DEPENDENCIES
   aws-sdk (= 1.59.1)
   json (~> 1.8.3)
-  nokogiri (~> 1.6.8.1)
+  nokogiri (~> 1.10.8)
   okyakusan!
   rake
 
