@@ -1,6 +1,6 @@
 GIT
-  remote: git://github.com/hone/okyakusan.git
-  revision: 764795da233ace9d45a5a0b3b85afa7d826d3b2d
+  remote: https://github.com/hone/okyakusan.git
+  revision: d32fd91e07c71cf54670a2802165de361f7a5d12
   specs:
     okyakusan (0.0.1)
       netrc (~> 0.7.7)
@@ -14,10 +14,12 @@ GEM
       json (~> 1.4)
       nokogiri (>= 1.4.4)
     json (1.8.6)
-    mini_portile2 (2.1.0)
+    mini_portile2 (2.8.0)
     netrc (0.7.9)
-    nokogiri (1.6.8.1)
-      mini_portile2 (~> 2.1.0)
+    nokogiri (1.13.4)
+      mini_portile2 (~> 2.8.0)
+      racc (~> 1.4)
+    racc (1.6.0)
     rake (12.0.0)
 
 PLATFORMS
@@ -26,7 +28,7 @@ PLATFORMS
 DEPENDENCIES
   aws-sdk (= 1.59.1)
   json (~> 1.8.3)
-  nokogiri (~> 1.6.8.1)
+  nokogiri (~> 1.13.4)
   okyakusan!
   rake
 
